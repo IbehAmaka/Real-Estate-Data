@@ -1,0 +1,208 @@
+---
+title: "Real Estate Data"
+author: "Ibeh Amaka"
+date: '2023-09-24'
+output: word_document
+---
+Introduction %>% 
+Real Estate Sales 2001-2020
+The Office of Policy and Management maintains a listing of all real estate sales with a sales price of $2,000 or greater between October 1 and September 30 each year. For each sale record, the file includes town, property address, date of sale, property type (residential, apartment, commercial, industrial or vacant land), sales price, and property assessment.
+
+The dataset contains 997213 observations and 14 variables.
+I noticed the date.recorded columns were all recorded in the year 2020.
+
+Analysis and Findings
+The library needed for this analysis is installed. This contained the harsh tage because it is installed on my 
+system. You can take the harsh tag and run it in order to install for your own use. 
+```
+##load all the library needed
+#######First install the packages needed
+
+# install.packages("readr")
+# install.packages("tidyverse")
+# install.packages("tidyr")
+# install.packages("ggplot2")
+# install.packages("dylyer")
+# install.packages("data.table")
+#install.packages("knitr")
+#install.packages('forecast', dependencies = TRUE)
+
+```
+Then the library is called
+
+```
+library(readr)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(data.table)
+library(knitr)
+library(forecast)
+library(tseries)
+
+```
+Next step is to load the data
+
+
+```
+sales <- read.csv("C:/Users/ibeha/OneDrive/Desktop/MY R DATASET/Business analystics/New folder/Real_Estate_Sales_2001-2020_GL.csv")
+```
+
+cleaning of the dataset
+The last four columns are not useful for this analysis so i will drop it
+
+```
+sales = sales[-c(11:14)]
+```
+Next i checked the structure of the dataset, this will enable me to see what data type it contained to enable
+me run my analysis. This is important because if numbers (numeric datatype) are in character data type then 
+the analysisi will not work.
+
+```
+str = sales
+```
+The Date variable were read in as characters, so i will convert them to date class
+```
+sales$Date.Recorded = as.Date(sales$Date.Recorded, format="%d/%m/%y")
+```
+I noticed i encounted NAs after converting to a date format because some dates were in mm-dd-yyy format this returned na. I will check the percentatge of missing values in the dataset
+```
+missing_values <- colMeans(is.na(sales)) * 100
+missing_values
+```
+The result shows that the data.recorded columns has a 61.2% missing values
+
+Using the mean of the dataset, i will be replacing it with 2020-05-29, i discovered that this replacement is too much as almost half of the data (611570) will be replaced with the same mean. 
+I decided to leave them that way since i will moszly be using the year column.
+
+Proper Anaysis
+I want to know the town with the highest sales, arranged in desecending order
+
+```
+town_sales <- sales %>%
+  group_by(Town) %>%
+  summarise(sales = sum(Sales.Ratio)) %>%
+  arrange(desc(sales))
+sales_10 = head (town_sales,10)
+sales_10
+```
+The results shows that Salisbury, Newtown, New Fairfield, Westport and East Hartfold has the highest sales
+
+```
+
+ggplot(sales_10, aes(x = reorder(Town, -sales), y = sales, fill = Town)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Sales by Town (Descending Order)", x = "Town", y = "Total Sales (in thousands)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set3") +  # Color the bars
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-1))
+```
+Property types that has more sales
+```
+prop_sales <- sales %>%
+  group_by(Property.Type) %>%
+  summarise(sales = sum(Sales.Ratio)) %>%
+  arrange(desc(sales))
+prop_sales
+```
+The results shows that single family, condo and resisdentail has the highest sales
+ I want to plot it however, there are empty rows so i will remove them
+``` 
+prop_sales <- prop_sales %>%
+  filter(!is.na(Property.Type) & Property.Type != "")
+  
+ggplot(prop_sales, aes(x = reorder(Property.Type, -sales), y = sales, fill = Property.Type)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Sales by property type (Descending Order)", x = "property type", y = "Total Sales (in thousands)") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_fill_brewer(palette = "Set3") +
+    scale_y_continuous(labels = scales::comma_format(scale = 1))
+```
+From the data above we can see that the difference between the sales of singke family housing is large compare to the others
+
+Lets see the year with the highest sales
+``` 
+year_sales <- sales %>%
+  group_by(List.Year) %>%
+  summarise(sales = sum(Sales.Ratio)) %>%
+  arrange(desc(sales))
+year_sales
+
+year_sales2 <- sales %>%
+  group_by(List.Year) %>%
+  summarise(sales = sum(Sales.Ratio)) 
+  
+year_sales2
+year_10 = head(year_sales2, 10)
+
+```
+From the result we see that year 2005, 2006, 2004, 2018 and 2003 has the highest sales
+``` 
+ggplot(year_10, aes(x = List.Year, y = sales)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Total Sales by Year", x = "Year", y = "Total Sales") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Rotate x-axis labels if needed
+  scale_y_continuous(labels = scales::comma_format(scale = 1))
+```
+
+Lets run some time series analysis, i want to predict the future years with good sales
+
+Using the Augmented Dickey-Fuller Test. Stationarity is an important concept in time series analysis 
+because many time series models assume that the data is stationary, 
+meaning that its statistical properties do not change over time.
+Here i want to visualize the properties of the time series
+
+Now this will not work because my data.recorded as NAs, therefore i will omit the nas
+
+```
+clean_data = na.omit(sales)
+
+time_series <- ts(clean_data$Date.Recorded, frequency = 12)
+
+autoplot(time_series) + labs(title = "Your Time Series Data")
+
+decomposition <- decompose(time_series)
+
+plot(decomposition)
+```
+lets run the Augmented Dickey-Fuller Test
+```
+adf.test(time_series)
+
+```
+The Dickey-Fuller test statistic is strongly negative, indicating evidence against non-stationarity.
+The p-value (0.01) is less than the common significance level of 0.05, so I can reject the null hypothesis.
+Therefore, I have evidence to suggest that my time series data is stationary, which is a favorable condition for many time series models and analyses.
+
+Lets run the predictions, i will be using the year for this prediction because the date.recordedhas only 2020 which will be baised.
+```
+# Create a time series using 'Year' as the time indicator
+ts_data <- ts(sales$Sale.Amount, start = min(sales$List.Year), end = max(sales$List.Year), frequency = 1)
+# Fit a time series forecasting model (e.g., ARIMA)
+arima_model <- auto.arima(ts_data)
+
+# Number of future years to forecast
+n_future_years <- 5
+
+# Generate future years
+future_years <- seq(max(sales$List.Year) + 1, length.out = n_future_years)
+
+# Generate forecasts for future years
+future_forecasts <- forecast(arima_model, h = n_future_years)
+
+# Extract the forecasts for future years
+future_sales_predictions <- future_forecasts$mean
+future_sales_predictions 
+```
+The results shows that 367721.3 465727.8 465727.8 465727.8 465727.8, year 2022- 2025 has the mean with the highest sales
+
+Conclusion and recommendation
+The company should enagage in Estate sales at the state with the highest sales
+The company should focus more in marketing single family, condo and residential housing because the have the highest sales
+For the mean of future sales, i noticed that the mean was the same for four years, this can be due to several reasons including seasonality, however we already confirmed that with our Dickey-Fuller test statistic. We can go ahead to perform more advanced test using "prophet", however, our data do not contain enough information such as  holidays or special events that may affect sales, marketing, inflation etc. 
+
+I will recommend a strong advertisiment and strong marketing teams in these areas inother to maximize the predicted future sales.
